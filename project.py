@@ -26,7 +26,7 @@ def _find_up(filename: str, start: str) -> str | None:
     current = Path(start).resolve()
     while True:
         candidate = current / filename
-        if candidate.exists():
+        if candidate.is_file():
             return str(candidate)
         parent = current.parent
         if parent == current:
