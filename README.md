@@ -117,7 +117,7 @@ cat agents/CLAUDE.md >> ~/.claude/CLAUDE.md
   "mcp": {
     "cerebral": {
       "type": "local",
-      "command": ["uv", "run", "/path/to/cerebral/main.py"],
+      "command": ["uv", "run", "--project", "/path/to/cerebral", "/path/to/cerebral/main.py"],
       "enabled": true
     }
   }
