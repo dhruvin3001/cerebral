@@ -9,6 +9,7 @@ dependencies = [
     "mcp[cli]",
     "python-dotenv",
     "qdrant-client",
+    "ollama>=0.6.2",
 ]
 
 [dependency-groups]
