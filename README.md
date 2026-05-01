@@ -79,7 +79,7 @@ The `agents/` directory contains ready-to-use judgment framework templates. Copy
 **1. Register the MCP server:**
 
 ```bash
-claude mcp add cerebral --scope user -- uv run /path/to/cerebral/main.py
+claude mcp add cerebral --scope user -- uv run --project /path/to/cerebral /path/to/cerebral/main.py
 ```
 
 **2. Copy the judgment framework** to your global Claude config:
