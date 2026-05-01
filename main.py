@@ -1,5 +1,7 @@
 import json
+import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -12,6 +14,9 @@ from memory import get_client, GLOBAL_USER_ID, project_user_id
 from project import get_project_id
 
 load_dotenv()
+
+# MCP uses stdio — all logging must go to stderr to avoid corrupting the protocol
+logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
 
 
 @dataclass
