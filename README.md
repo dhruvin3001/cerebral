@@ -79,8 +79,10 @@ The `agents/` directory contains ready-to-use judgment framework templates. Copy
 **1. Register the MCP server:**
 
 ```bash
-claude mcp add cerebral --scope user -- uv run --project /path/to/cerebral /path/to/cerebral/main.py
+claude mcp add cerebral --scope user -- $(which uv) run --project /path/to/cerebral /path/to/cerebral/main.py
 ```
+
+> **Note:** Using `$(which uv)` (or the full path like `/opt/homebrew/bin/uv`) is required because Claude Code launches with a stripped PATH that may not include your shell's `uv`.
 
 **2. Copy the judgment framework** to your global Claude config:
 
@@ -117,12 +119,14 @@ cat agents/CLAUDE.md >> ~/.claude/CLAUDE.md
   "mcp": {
     "cerebral": {
       "type": "local",
-      "command": ["uv", "run", "--project", "/path/to/cerebral", "/path/to/cerebral/main.py"],
+      "command": ["/full/path/to/uv", "run", "--project", "/path/to/cerebral", "/path/to/cerebral/main.py"],
       "enabled": true
     }
   }
 }
 ```
+
+> **Note:** Use the full path to `uv` (find it with `which uv`). opencode and Claude Code launch with a stripped PATH.
 
 **2. Copy the judgment framework** to your global opencode config:
 
