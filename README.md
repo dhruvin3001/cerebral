@@ -56,8 +56,12 @@ Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and st
 ### 2. Qdrant
 
 ```bash
-docker run -d --name qdrant --restart always -p 6333:6333 qdrant/qdrant
+docker run -d --name qdrant --restart always -p 6333:6333 \
+  -v ~/.cerebral/qdrant:/qdrant/storage \
+  qdrant/qdrant
 ```
+
+Data is persisted to `~/.cerebral/qdrant/` on your machine. Without the `-v` mount, memories are stored inside the container and lost if it's ever removed.
 
 ### 3. Ollama
 
