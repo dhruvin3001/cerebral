@@ -1,16 +1,30 @@
 # cerebral
 
-Permanent memory for AI coding agents. Gives Claude Code and opencode a persistent, self-improving memory that survives session compaction, context resets, and tool restarts — backed by [mem0](https://github.com/mem0ai/mem0), [Ollama](https://ollama.com), and [Qdrant](https://qdrant.tech).
+A self-improving memory layer for AI coding agents. cerebral gives Claude Code and opencode the ability to learn from corrections, discoveries, and decisions — **autonomously, across sessions, without being asked** — backed by [mem0](https://github.com/mem0ai/mem0), [Ollama](https://ollama.com), and [Qdrant](https://qdrant.tech).
 
 ## Why
 
-Every AI coding session starts from zero. Hard-won debugging insights, project-specific patterns, and your preferences — all gone when the context window fills up or you start a new session. cerebral fixes that.
+Every AI coding session starts from zero. The agent that debugged a tricky API quirk with you yesterday has no memory of it today. You repeat the same corrections. It rediscovers the same patterns. Hard-won context evaporates on every compaction or restart.
 
-**The self-learning loop:**
-1. Agent loads context at session start
-2. Saves corrections and discoveries mid-session (autonomous)
-3. Bulk-captures everything important before compaction or session end
-4. Next session begins with full context
+cerebral fixes the root cause: the agent doesn't learn.
+
+**What makes it different from "just memory":**
+
+The judgment framework (installed into `CLAUDE.md` / `AGENTS.md`) gives the agent autonomous rules for *when* to save — without you asking:
+
+- You correct it → saved immediately to global memory
+- It discovers an API quirk → saved to project memory
+- It makes an architectural decision → saved with reasoning
+- Session is about to compact → bulk-captures everything first
+
+Each session, the agent starts by loading that accumulated context as behavioral constraints — not background reading. It gets better over time, on its own.
+
+**The self-improving loop:**
+```
+Session N:   agent corrected → saves immediately
+Session N+1: loads correction → doesn't repeat the mistake
+Session N+2: loads pattern → applies it without prompting
+```
 
 All inference runs locally. No API calls, no token costs, no data leaving your machine.
 
