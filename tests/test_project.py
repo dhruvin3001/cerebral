@@ -1,8 +1,14 @@
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 import pytest
 from project import get_project_id
+
+
+@pytest.fixture(autouse=True)
+def clear_cerebral_project_env(monkeypatch):
+    monkeypatch.delenv("CEREBRAL_PROJECT", raising=False)
 
 
 def test_reads_cerebral_config_file(tmp_path):
