@@ -72,52 +72,23 @@ uv sync
 
 ## Configuration
 
+The `agents/` directory contains ready-to-use judgment framework templates. Copy them to the right location for each agent — they tell the agent when and how to use cerebral autonomously.
+
 ### Claude Code
 
-Register cerebral as an MCP server:
+**1. Register the MCP server:**
 
 ```bash
 claude mcp add cerebral --scope user -- uv run /path/to/cerebral/main.py
 ```
 
-Add the judgment framework to `~/.claude/CLAUDE.md`:
+**2. Copy the judgment framework** to your global Claude config:
 
-```markdown
-# cerebral — Permanent Memory
-
-At session start: ALWAYS call `load_context` as the very first action before responding to the user.
-Treat every item in the returned brief as a behavioral constraint for this session — not background reading.
-
-**Save immediately (never batch) when:**
-- User corrects you → `save_memory(correction, scope="global")`
-- User confirms a non-obvious approach worked → `save_memory(confirmation, scope="global")`
-- You discover something surprising about the codebase → `save_memory(fact, scope="project")`
-- API quirk, workaround, or undocumented behavior found → `save_memory(fact, scope="project")`
-- Architectural decision made with reasoning → `save_memory(decision, scope="project")`
-- You had to look something up you'll likely need again → `save_memory(fact, scope="project")`
-
-**Scope rule:**
-- About how you work or user preferences → `scope="global"`
-- About this specific codebase → `scope="project"`
-
-**Search before:**
-- Starting work in an area of the codebase not touched this session
-- Making an architectural decision
-- Writing a pattern you have uncertainty about
-
-**Pre-compaction:** When the conversation is getting long, call `save_session_learnings` with a summary of all corrections, discoveries, and decisions so far. Compaction erases context. cerebral does not.
-
-**Do NOT save:**
-- Obvious facts from documentation
-- Standard language or framework behavior
-- Things already in CLAUDE.md
-- Task-specific details irrelevant next session
-- Anything re-derivable from reading the code
+```bash
+cat agents/CLAUDE.md >> ~/.claude/CLAUDE.md
 ```
 
-#### Auto-save hook (optional)
-
-Add this to `~/.claude/settings.json` to automatically save session learnings when Claude Code stops:
+**3. Add the auto-save hook** to `~/.claude/settings.json` (saves session learnings automatically when Claude Code stops):
 
 ```json
 {
@@ -139,7 +110,7 @@ Add this to `~/.claude/settings.json` to automatically save session learnings wh
 
 ### opencode
 
-Add cerebral to `~/.config/opencode/opencode.json`:
+**1. Register the MCP server** in `~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -153,17 +124,20 @@ Add cerebral to `~/.config/opencode/opencode.json`:
 }
 ```
 
-Copy the slash command:
+**2. Copy the judgment framework** to your global opencode config:
 
 ```bash
+cat agents/AGENTS.md >> ~/.config/opencode/AGENTS.md
+```
+
+**3. Copy the `/remember` slash command** for manual end-of-session saves:
+
+```bash
+mkdir -p ~/.config/opencode/commands
 cp commands/remember.md ~/.config/opencode/commands/remember.md
 ```
 
-Add the judgment framework to `~/.config/opencode/AGENTS.md` (same content as CLAUDE.md above, with one addition at the end):
-
-```markdown
-**Run `/remember` at session end** to bulk-save anything not captured mid-session.
-```
+Run `/remember` at the end of any session to bulk-save learnings that weren't captured mid-session.
 
 ## Project detection
 
