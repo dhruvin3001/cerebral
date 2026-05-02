@@ -69,59 +69,73 @@ def _extract(results) -> list[str]:
 
 
 def _do_load_context(mem0: Memory, project_id: str, task_description: str = "") -> str:
-    query = task_description or "general preferences corrections patterns warnings"
+    """
+    Returns the always-on Behavioral Brief: warnings, corrections, global preferences,
+    project decisions. Loaded at session start and after compaction. Reference-type
+    memories (facts, workarounds, patterns) are intentionally excluded — those are
+    retrieved on-demand mid-session via search_memories.
+    """
     p_uid = project_user_id(project_id)
 
-    def _search_typed(uid, cerebral_type):
-        return _extract(mem0.search(query, filters={"user_id": uid, "cerebral_type": cerebral_type}, limit=3))
+    def _get_all_typed(uid, cerebral_type):
+        return _extract(mem0.get_all(filters={"user_id": uid, "cerebral_type": cerebral_type}))
 
-    def _search_untyped(uid):
-        return _extract(mem0.search(query, filters={"user_id": uid}, limit=5))
+    # Constraints — apply every session, no semantic filtering
+    warnings    = _get_all_typed(GLOBAL_USER_ID, "warning")    + _get_all_typed(p_uid, "warning")
+    corrections = _get_all_typed(GLOBAL_USER_ID, "correction") + _get_all_typed(p_uid, "correction")
+    preferences = _get_all_typed(GLOBAL_USER_ID, "preference")  # global only — about you, not the codebase
+    decisions   = _get_all_typed(p_uid, "decision")             # project only — codebase-specific arch
 
-    def _search_multi(uid, *types):
-        results = []
-        for t in types:
-            results += _search_typed(uid, t)
-        return results
+    # Untyped fallback for pre-v2 memories (no cerebral_type tag).
+    # Build the "all typed" set across every known type, then subtract from full get_all.
+    all_typed = set(warnings + corrections + preferences + decisions)
+    for uid in (GLOBAL_USER_ID, p_uid):
+        for ctype in MEMORY_TYPES:
+            all_typed.update(_get_all_typed(uid, ctype))
 
-    # Tier 1 — Critical (things that cause mistakes)
-    critical   = _search_multi(GLOBAL_USER_ID, "warning", "correction") + \
-                 _search_multi(p_uid, "warning", "correction")
+    untyped = []
+    for uid in (GLOBAL_USER_ID, p_uid):
+        all_mems = _extract(mem0.get_all(filters={"user_id": uid}))
+        untyped += [m for m in all_mems if m not in all_typed]
 
-    # Tier 2 — Behavioral (how to work)
-    behavioral = _search_multi(GLOBAL_USER_ID, "preference", "pattern") + \
-                 _search_multi(p_uid, "preference", "pattern")
-
-    # Tier 3 — Reference (look up as needed)
-    reference  = _search_multi(GLOBAL_USER_ID, "fact", "decision", "workaround") + \
-                 _search_multi(p_uid, "fact", "decision", "workaround")
-
-    # Untyped fallback (memories saved before v2)
-    untyped    = _search_untyped(GLOBAL_USER_ID) + _search_untyped(p_uid)
-
-    has_typed   = any([critical, behavioral, reference])
+    has_typed   = any([warnings, corrections, preferences, decisions])
     has_untyped = bool(untyped)
 
     if not has_typed and not has_untyped:
         return "No memories found. This may be a new session or new project."
 
+    def _dedup(items):
+        seen, out = set(), []
+        for m in items:
+            if m not in seen:
+                seen.add(m)
+                out.append(m)
+        return out
+
     lines = ["## Behavioral Brief — Apply These This Session\n"]
 
+    critical = _dedup(warnings + corrections)
     if critical:
-        lines.append("### ⚠ Critical (warnings & corrections)")
+        lines.append("### ⚠ Critical (warnings & corrections — never repeat)")
         lines.extend(f"- {m}" for m in critical)
 
-    if behavioral:
-        lines.append("\n### Behavioral (preferences & patterns)")
-        lines.extend(f"- {m}" for m in behavioral)
+    if preferences:
+        lines.append("\n### Preferences (how you work)")
+        lines.extend(f"- {m}" for m in _dedup(preferences))
 
-    if reference:
-        lines.append("\n### Reference (facts, decisions, workarounds)")
-        lines.extend(f"- {m}" for m in reference)
+    if decisions:
+        lines.append("\n### Project Decisions (architectural choices in this codebase)")
+        lines.extend(f"- {m}" for m in _dedup(decisions))
 
     if not has_typed and has_untyped:
-        lines.append("\n### Context")
-        lines.extend(f"- {m}" for m in untyped)
+        lines.append("\n### Context (legacy untyped memories)")
+        lines.extend(f"- {m}" for m in _dedup(untyped))
+
+    lines.append(
+        "\n---\n"
+        "Reference memories (facts, workarounds, patterns) are not loaded here. "
+        "Use `search_memories` mid-session when topics activate them."
+    )
 
     return "\n".join(lines)
 
