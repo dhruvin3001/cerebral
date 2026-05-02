@@ -1,4 +1,4 @@
-# cerebral v3 — Smart Context Loading
+# Smart Context Loading
 
 **Date:** 2026-05-02
 **Status:** Validated

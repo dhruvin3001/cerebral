@@ -1,4 +1,4 @@
-# cerebral v2 Implementation Plan
+# Async Saves + Typed Memories — Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use executing-plans to implement this plan task-by-task.
 
