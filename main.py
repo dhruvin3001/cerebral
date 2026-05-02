@@ -24,10 +24,15 @@ MEMORY_TYPES = {"warning", "correction", "preference", "pattern", "fact", "decis
 
 async def _run_in_background(fn, *args):
     loop = asyncio.get_event_loop()
-    try:
-        await loop.run_in_executor(None, fn, *args)
-    except Exception as e:
-        logging.error(f"Background save failed: {e}")
+    for attempt in range(3):
+        try:
+            await loop.run_in_executor(None, fn, *args)
+            return
+        except Exception as e:
+            if attempt == 2:
+                logging.error(f"Background save failed after 3 attempts: {e}")
+            else:
+                await asyncio.sleep(2 ** attempt)  # 1s, then 2s
 
 
 async def _schedule_save(fn, *args) -> asyncio.Task:
