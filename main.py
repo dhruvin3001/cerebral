@@ -140,15 +140,22 @@ def _do_load_context(mem0: Memory, project_id: str, task_description: str = "") 
     return "\n".join(lines)
 
 
-def _do_search_memories(mem0: Memory, project_id: str, query: str, scope: str = "both") -> str:
+def _do_search_memories(mem0: Memory, project_id: str, query: str, scope: str = "both") -> tuple[str, list[str]]:
+    """Returns (formatted_text, hit_memory_ids) so the caller can bump retrieval metrics."""
     results = []
+    ids: list[str] = []
     if scope in ("project", "both"):
-        for m in _extract(mem0.search(query, filters={"user_id": project_user_id(project_id)}, limit=5)):
-            results.append(f"[project] {m}")
+        raw = mem0.search(query, filters={"user_id": project_user_id(project_id)}, limit=5)
+        for m in _extract_with_ids(raw):
+            results.append(f"[project] {m['text']}")
+            ids.append(m["id"])
     if scope in ("global", "both"):
-        for m in _extract(mem0.search(query, filters={"user_id": GLOBAL_USER_ID}, limit=5)):
-            results.append(f"[global] {m}")
-    return json.dumps(results, indent=2) if results else "No relevant memories found."
+        raw = mem0.search(query, filters={"user_id": GLOBAL_USER_ID}, limit=5)
+        for m in _extract_with_ids(raw):
+            results.append(f"[global] {m['text']}")
+            ids.append(m["id"])
+    text = json.dumps(results, indent=2) if results else "No relevant memories found."
+    return text, ids
 
 
 def _do_save_memory(mem0: Memory, project_id: str, text: str, scope: str, cerebral_type: str = "fact") -> str:
@@ -208,7 +215,12 @@ async def load_context(ctx: Context, task_description: str = "") -> str:
 async def search_memories(ctx: Context, query: str, scope: str = "both") -> str:
     """Search memories by meaning. scope: 'global', 'project', or 'both' (default)."""
     c = ctx.request_context.lifespan_context
-    return _do_search_memories(c.mem0, c.project_id, query, scope)
+    text, ids = _do_search_memories(c.mem0, c.project_id, query, scope)
+    if ids:
+        from metrics import bump_retrieval
+        from memory import get_qdrant_client, QDRANT_COLLECTION
+        await _schedule_save(bump_retrieval, get_qdrant_client(), QDRANT_COLLECTION, ids)
+    return text
 
 
 @mcp.tool()
