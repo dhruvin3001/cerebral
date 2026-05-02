@@ -4,6 +4,7 @@ At session start: ALWAYS call `load_context` as the very first action before res
 Treat every item in the returned brief as a behavioral constraint for this session — not background reading.
 
 **Save immediately (never batch) when:**
+- User shares any context about themselves, their environment, tools, workflow, or setup → `save_memory(fact, scope="global", cerebral_type="fact")`
 - User explicitly reverses something you believed → `forget(old_belief)` first, then `save_memory(correction, scope="global", cerebral_type="correction")`
 - User corrects a style/approach preference → `forget(old_preference)` first, then `save_memory(new_preference, scope="global", cerebral_type="preference")`
 - User confirms a non-obvious approach worked → `save_memory(confirmation, scope="global", cerebral_type="preference")`
