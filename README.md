@@ -161,6 +161,33 @@ cp commands/remember.md ~/.config/opencode/commands/remember.md
 
 Run `/remember` at the end of any session to bulk-save learnings that weren't captured mid-session.
 
+## Storage
+
+All memories are persisted to `~/.cerebral/qdrant/` on your machine (mounted into the Qdrant container). The logical structure:
+
+```
+~/.cerebral/
+└── qdrant/
+    └── collections/
+        └── cerebral/              # Single collection for all memories
+            └── 0/                 # Shard
+                ├── segments/      # Vector embeddings (768-dim, binary)
+                │   └── <uuid>/
+                │       ├── vectors/        # nomic-embed-text embeddings
+                │       └── payload_index/  # Indexed fields (user_id, etc.)
+                └── wal/           # Write-ahead log for crash recovery
+```
+
+Everything — global memories and all project memories — lives in the single `cerebral` collection. The `user_id` field separates them at query time (`"dhruvin"` vs `"project:github.com/..."`).
+
+The files are Qdrant's internal binary format and aren't human-readable. To inspect what's actually stored:
+
+```bash
+curl -s http://localhost:6333/collections/cerebral/points/scroll \
+  -H 'Content-Type: application/json' \
+  -d '{"limit": 10, "with_payload": true}' | python3 -m json.tool
+```
+
 ## Project detection
 
 cerebral scopes memories to the current project automatically. Detection priority:
