@@ -4,7 +4,7 @@ At session start: ALWAYS call `load_context` as the very first action before res
 Treat every item in the returned brief as a behavioral constraint for this session — not background reading.
 
 **Save immediately (never batch) when:**
-- User corrects you → `save_memory(correction, scope="global")`
+- User corrects you → `forget(old_preference)` first, then `save_memory(correction, scope="global")`
 - User confirms a non-obvious approach worked → `save_memory(confirmation, scope="global")`
 - You discover something surprising about the codebase → `save_memory(fact, scope="project")`
 - API quirk, workaround, or undocumented behavior found → `save_memory(fact, scope="project")`

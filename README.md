@@ -208,7 +208,7 @@ cerebral scopes memories to the current project automatically. Detection priorit
 | `save_memory(text, scope)` | Save a memory. `scope`: `"global"` or `"project"`. |
 | `search_memories(query, scope?)` | Semantic search. `scope`: `"global"`, `"project"`, or `"both"` (default). |
 | `save_session_learnings(summary)` | Bulk-save end-of-session learnings to both pools. |
-| `forget(query)` | Delete memories matching a query. |
+| `forget(query, scope?)` | Delete memories matching a query. Use before saving a correction to remove the stale version. |
 
 ## CLI
 

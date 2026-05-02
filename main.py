@@ -94,6 +94,26 @@ def _do_get_project_memories(mem0: Memory, project_id: str) -> str:
     return json.dumps(memories, indent=2) if memories else "No project memories yet."
 
 
+def _do_forget(mem0: Memory, project_id: str, query: str, scope: str = "both") -> str:
+    deleted = 0
+    for s, uid in [("project", project_user_id(project_id)), ("global", GLOBAL_USER_ID)]:
+        if scope not in (s, "both"):
+            continue
+        results = mem0.search(query, filters={"user_id": uid}, limit=10)
+        for m in _extract_with_ids(results):
+            mem0.delete(m["id"])
+            deleted += 1
+    return f"Deleted {deleted} memory{'s' if deleted != 1 else ''}." if deleted else "No matching memories found."
+
+
+def _extract_with_ids(results) -> list[dict]:
+    if isinstance(results, dict) and "results" in results:
+        return [{"id": m["id"], "text": m["memory"]} for m in results["results"] if "id" in m]
+    if isinstance(results, list):
+        return [{"id": m["id"], "text": m.get("memory", "")} for m in results if isinstance(m, dict) and "id" in m]
+    return []
+
+
 # --- MCP tool wrappers ---
 
 @mcp.tool()
@@ -122,6 +142,13 @@ async def save_session_learnings(ctx: Context, session_summary: str) -> str:
     """Bulk save end-of-session learnings. Pass a freeform summary; mem0 extracts individual facts."""
     c = ctx.request_context.lifespan_context
     return _do_save_session_learnings(c.mem0, c.project_id, session_summary)
+
+
+@mcp.tool()
+async def forget(ctx: Context, query: str, scope: str = "both") -> str:
+    """Delete memories matching a query. scope: 'global', 'project', or 'both' (default). Use when a preference changes to remove the stale version before saving the new one."""
+    c = ctx.request_context.lifespan_context
+    return _do_forget(c.mem0, c.project_id, query, scope)
 
 
 @mcp.tool()
