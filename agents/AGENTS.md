@@ -4,12 +4,15 @@ At session start: ALWAYS call `load_context` as the very first action before res
 Treat every item in the returned brief as a behavioral constraint for this session — not background reading.
 
 **Save immediately (never batch) when:**
-- User corrects you → `forget(old_preference)` first, then `save_memory(correction, scope="global")`
-- User confirms a non-obvious approach worked → `save_memory(confirmation, scope="global")`
-- You discover something surprising about the codebase → `save_memory(fact, scope="project")`
-- API quirk, workaround, or undocumented behavior found → `save_memory(fact, scope="project")`
-- Architectural decision made with reasoning → `save_memory(decision, scope="project")`
-- You had to look something up you'll likely need again → `save_memory(fact, scope="project")`
+- User explicitly reverses something you believed → `forget(old_belief)` first, then `save_memory(correction, scope="global", cerebral_type="correction")`
+- User corrects a style/approach preference → `forget(old_preference)` first, then `save_memory(new_preference, scope="global", cerebral_type="preference")`
+- User confirms a non-obvious approach worked → `save_memory(confirmation, scope="global", cerebral_type="preference")`
+- You notice a recurring convention in this codebase → `save_memory(pattern, scope="project", cerebral_type="pattern")`
+- API quirk, trap, or undocumented behavior found → `save_memory(fact, scope="project", cerebral_type="warning")`
+- Architectural decision made with reasoning → `save_memory(decision, scope="project", cerebral_type="decision")`
+- Non-obvious fix or workaround → `save_memory(fact, scope="project", cerebral_type="workaround")`
+- You discovered something surprising about the codebase → `save_memory(fact, scope="project", cerebral_type="fact")`
+- You had to look something up you'll likely need again → `save_memory(fact, scope="project", cerebral_type="fact")`
 
 **Scope rule:**
 - About how you work or user preferences → `scope="global"`

@@ -217,9 +217,9 @@ cerebral scopes memories to the current project automatically. Detection priorit
 | Tool | Description |
 |------|-------------|
 | `load_context` | Load all memories for the current project. Call this first at session start. |
-| `save_memory(text, scope)` | Save a memory. `scope`: `"global"` or `"project"`. |
+| `save_memory(text, scope, cerebral_type?)` | Save a memory. `scope`: `"global"` or `"project"`. `cerebral_type`: `warning\|correction\|preference\|pattern\|fact\|decision\|workaround` (default: `"fact"`). Returns immediately — save is queued. |
 | `search_memories(query, scope?)` | Semantic search. `scope`: `"global"`, `"project"`, or `"both"` (default). |
-| `save_session_learnings(summary)` | Bulk-save end-of-session learnings to both pools. |
+| `save_session_learnings(summary)` | Bulk-save end-of-session learnings. Returns immediately — save is queued. |
 | `forget(query, scope?)` | Delete memories matching a query. Use before saving a correction to remove the stale version. |
 
 ## CLI

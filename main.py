@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -17,6 +18,21 @@ load_dotenv()
 
 # MCP uses stdio — all logging must go to stderr to avoid corrupting the protocol
 logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
+
+MEMORY_TYPES = {"warning", "correction", "preference", "pattern", "fact", "decision", "workaround"}
+
+
+async def _run_in_background(fn, *args):
+    loop = asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(None, fn, *args)
+    except Exception as e:
+        logging.error(f"Background save failed: {e}")
+
+
+async def _schedule_save(fn, *args) -> asyncio.Task:
+    """Fire a blocking save function in a thread pool. Returns immediately."""
+    return asyncio.create_task(_run_in_background(fn, *args))
 
 
 @dataclass
@@ -48,20 +64,60 @@ def _extract(results) -> list[str]:
 
 
 def _do_load_context(mem0: Memory, project_id: str, task_description: str = "") -> str:
-    query = task_description or "general preferences corrections patterns"
-    global_mems = _extract(mem0.search(query, filters={"user_id": GLOBAL_USER_ID}, limit=5))
-    project_mems = _extract(mem0.search(query, filters={"user_id": project_user_id(project_id)}, limit=5))
+    query = task_description or "general preferences corrections patterns warnings"
+    p_uid = project_user_id(project_id)
 
-    if not global_mems and not project_mems:
+    def _search_typed(uid, cerebral_type):
+        return _extract(mem0.search(query, filters={"user_id": uid, "cerebral_type": cerebral_type}, limit=3))
+
+    def _search_untyped(uid):
+        return _extract(mem0.search(query, filters={"user_id": uid}, limit=5))
+
+    def _search_multi(uid, *types):
+        results = []
+        for t in types:
+            results += _search_typed(uid, t)
+        return results
+
+    # Tier 1 — Critical (things that cause mistakes)
+    critical   = _search_multi(GLOBAL_USER_ID, "warning", "correction") + \
+                 _search_multi(p_uid, "warning", "correction")
+
+    # Tier 2 — Behavioral (how to work)
+    behavioral = _search_multi(GLOBAL_USER_ID, "preference", "pattern") + \
+                 _search_multi(p_uid, "preference", "pattern")
+
+    # Tier 3 — Reference (look up as needed)
+    reference  = _search_multi(GLOBAL_USER_ID, "fact", "decision", "workaround") + \
+                 _search_multi(p_uid, "fact", "decision", "workaround")
+
+    # Untyped fallback (memories saved before v2)
+    untyped    = _search_untyped(GLOBAL_USER_ID) + _search_untyped(p_uid)
+
+    has_typed   = any([critical, behavioral, reference])
+    has_untyped = bool(untyped)
+
+    if not has_typed and not has_untyped:
         return "No memories found. This may be a new session or new project."
 
     lines = ["## Behavioral Brief — Apply These This Session\n"]
-    if global_mems:
-        lines.append("### Global Constraints (always apply)")
-        lines.extend(f"- {m}" for m in global_mems)
-    if project_mems:
-        lines.append(f"\n### Project Context ({project_id})")
-        lines.extend(f"- {m}" for m in project_mems)
+
+    if critical:
+        lines.append("### ⚠ Critical (warnings & corrections)")
+        lines.extend(f"- {m}" for m in critical)
+
+    if behavioral:
+        lines.append("\n### Behavioral (preferences & patterns)")
+        lines.extend(f"- {m}" for m in behavioral)
+
+    if reference:
+        lines.append("\n### Reference (facts, decisions, workarounds)")
+        lines.extend(f"- {m}" for m in reference)
+
+    if not has_typed and has_untyped:
+        lines.append("\n### Context")
+        lines.extend(f"- {m}" for m in untyped)
+
     return "\n".join(lines)
 
 
@@ -76,10 +132,16 @@ def _do_search_memories(mem0: Memory, project_id: str, query: str, scope: str = 
     return json.dumps(results, indent=2) if results else "No relevant memories found."
 
 
-def _do_save_memory(mem0: Memory, project_id: str, text: str, scope: str) -> str:
+def _do_save_memory(mem0: Memory, project_id: str, text: str, scope: str, cerebral_type: str = "fact") -> str:
+    if cerebral_type not in MEMORY_TYPES:
+        cerebral_type = "fact"
     user_id = GLOBAL_USER_ID if scope == "global" else project_user_id(project_id)
-    mem0.add([{"role": "user", "content": text}], user_id=user_id)
-    return f"Saved to {scope} memory: {text[:80]}{'...' if len(text) > 80 else ''}"
+    mem0.add(
+        [{"role": "user", "content": text}],
+        user_id=user_id,
+        metadata={"cerebral_type": cerebral_type},
+    )
+    return f"Saved to {scope} memory ({cerebral_type}): {text[:80]}{'...' if len(text) > 80 else ''}"
 
 
 def _do_save_session_learnings(mem0: Memory, project_id: str, session_summary: str) -> str:
@@ -131,17 +193,19 @@ async def search_memories(ctx: Context, query: str, scope: str = "both") -> str:
 
 
 @mcp.tool()
-async def save_memory(ctx: Context, text: str, scope: str) -> str:
-    """Save a memory. scope: 'global' for preferences/corrections, 'project' for codebase facts."""
+async def save_memory(ctx: Context, text: str, scope: str, cerebral_type: str = "fact") -> str:
+    """Save a memory. scope: 'global' or 'project'. cerebral_type: warning|correction|preference|pattern|fact|decision|workaround (default: fact). Returns immediately — save is queued."""
     c = ctx.request_context.lifespan_context
-    return _do_save_memory(c.mem0, c.project_id, text, scope)
+    await _schedule_save(_do_save_memory, c.mem0, c.project_id, text, scope, cerebral_type)
+    return f"Queued to {scope} memory ({cerebral_type})."
 
 
 @mcp.tool()
 async def save_session_learnings(ctx: Context, session_summary: str) -> str:
-    """Bulk save end-of-session learnings. Pass a freeform summary; mem0 extracts individual facts."""
+    """Bulk save end-of-session learnings. Pass a freeform summary; mem0 extracts individual facts. Returns immediately — save is queued."""
     c = ctx.request_context.lifespan_context
-    return _do_save_session_learnings(c.mem0, c.project_id, session_summary)
+    await _schedule_save(_do_save_session_learnings, c.mem0, c.project_id, session_summary)
+    return "Session learnings queued."
 
 
 @mcp.tool()

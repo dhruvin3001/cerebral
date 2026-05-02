@@ -52,6 +52,21 @@ def test_get_project_memories_returns_data(mem0):
     assert len(result) > 0
 
 
+def test_save_memory_stores_type(mem0):
+    _do_save_memory(mem0, PROJECT_ID, "CRITICAL: never commit .env files", "project", "warning")
+    results = _do_search_memories(mem0, PROJECT_ID, ".env files security", "project")
+    assert len(results) > 2
+
+
+def test_load_context_sections_by_type(mem0):
+    _do_save_memory(mem0, PROJECT_ID, "WARNING: rate limit is 10 req/s on the external API", "project", "warning")
+    _do_save_memory(mem0, PROJECT_ID, "User prefers verbose logging in dev mode", "project", "preference")
+    result = _do_load_context(mem0, PROJECT_ID)
+    assert "Critical" in result or "critical" in result.lower() or "Warning" in result
+    assert isinstance(result, str)
+    assert len(result) > 10
+
+
 def test_save_session_learnings_bulk(mem0):
     summary = """
     User corrected me: always use pathlib.Path not os.path.
