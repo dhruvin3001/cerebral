@@ -51,7 +51,19 @@ Two memory pools:
 
 ### 1. Docker
 
+You need a Docker runtime. Two options:
+
+**macOS — Colima (recommended, no GUI app needed):**
+```bash
+brew install colima
+brew services start colima   # auto-starts on login, runs silently in background
+```
+
+**Linux / macOS alternative — Docker Desktop:**
+
 Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and start it.
+
+> **Why Colima on Mac?** Docker Desktop requires the app to be open. Colima runs as a background daemon via `brew services` — no app, no menu bar icon, just works.
 
 ### 2. Qdrant
 
