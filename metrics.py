@@ -8,16 +8,25 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _build_payload_update(existing_metadata: dict | None) -> dict:
+def _build_payload_update(existing_payload: dict | None) -> dict:
     """
-    Merge metric fields into existing metadata. Preserves cerebral_type and any
-    other fields. Initializes retrieval_count to 1 if absent (covers pre-metrics
-    memories with metadata=None or partial metadata).
+    Returns the flat payload patch to feed into Qdrant set_payload.
+
+    mem0 stores user-supplied metadata as TOP-LEVEL Qdrant payload keys (e.g.
+    `cerebral_type: "fact"`). On read, it collects all non-core payload keys
+    into a `metadata` dict on the returned record. So we must also write
+    metric fields flat at the top level — nesting under a "metadata" key
+    causes mem0 to double-wrap them on retrieval.
+
+    set_payload merges into existing payload, so this only touches our two
+    metric keys and leaves cerebral_type, data, hash, etc. alone.
     """
-    metadata = dict(existing_metadata) if existing_metadata else {}
-    metadata["retrieval_count"] = int(metadata.get("retrieval_count", 0)) + 1
-    metadata["last_retrieved_at"] = _now_iso()
-    return {"metadata": metadata}
+    payload = existing_payload or {}
+    new_count = int(payload.get("retrieval_count", 0)) + 1
+    return {
+        "retrieval_count": new_count,
+        "last_retrieved_at": _now_iso(),
+    }
 
 
 def bump_retrieval(client: QdrantClient, collection: str, memory_ids: list[str]) -> None:
@@ -35,8 +44,7 @@ def bump_retrieval(client: QdrantClient, collection: str, memory_ids: list[str])
             with_vectors=False,
         )
         for point in points:
-            existing = (point.payload or {}).get("metadata")
-            update = _build_payload_update(existing)
+            update = _build_payload_update(point.payload)
             client.set_payload(
                 collection_name=collection,
                 payload=update,
